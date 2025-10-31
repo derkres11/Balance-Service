@@ -74,37 +74,34 @@ def reserve_endpoint(request: ReserveRequest):
     return {"message": "Reservation successful", "reservation": reservation}
 
 
-@app.post("/recognize", response_model=Transaction)
-def recognize_payment_endpoint(request: ReserveRequest):
-    """Recognize a reserved payment and create a final transaction record."""
+@app.post("/deposit", response_model=DepositResponse)
+def deposit_endpoint(request: DepositRequest, db: Session = Depends(get_db)):
+    """
+    Deposit money to a user's account.
+    """
+    # Start transaction
+    with db.begin():
+        # Find user balance
+        balance = db.query(Balance).filter(Balance.user_id == request.user_id).first()
+        if not balance:
+            # Check if user exists
+            user = db.query(User).filter(User.id == request.user_id).first()
+            if not user:
+                raise HTTPException(status_code=404, detail="User not found")
+            # Create new balance record
+            balance = Balance(user_id=request.user_id, amount=0.0)
+            db.add(balance)
+            db.flush()  # чтобы id был доступен
 
-    key = (request.user_id, request.order_id)
-    if key not in reservations:
-        logging.error(f"Recognition failed: User {request.user_id} not found")
-        raise HTTPException(status_code=404, detail="Reservation not found")
+        # Update balance
+        balance.amount += request.amount
+        db.commit()
 
-    reservation = reservations[key]
-
-    if reservation.status != "reserved":
-        logging.warning(f"Recognition failed:  wrong status for {request.user_id}")
-        raise HTTPException(status_code=400, detail="Reservation already "
-                                                    "recognized or cancelled")
-
-    transaction = Transaction(
-        user_id=reservation.user_id,
-        service_id=reservation.service_id,
-        order_id=reservation.order_id,
-        amount=reservation.amount,
-        timestamp=datetime.now()
-    )
-
-    transactions.append(transaction)
-
-    reservation.status = "recognized"
-
-    logging.info(f"Transaction recognized: User {reservation.user_id}, Order {reservation.order_id}, Amount {reservation.amount}")
-
-    return {"message": "Transaction recognized successfully", "transaction": transaction}
+        return DepositResponse(
+            user_id=request.user_id,
+            new_balance=balance.amount,
+            message="Deposit successful"
+        )
 
 
 @app.get("/transactions/{user_id}")
@@ -115,17 +112,14 @@ def transactions_endpoint(
     sort_by: str = Query("timestamp"),
     order: str = Query("desc")
 ):
-    # Filter transactions
     user_transactions = [t for t in transactions if t.user_id == user_id]
 
-    # Sort transactions
     reverse = True if order == "desc" else False
     if sort_by == "timestamp":
         user_transactions.sort(key=lambda t: t.timestamp, reverse=reverse)
     elif sort_by == "amount":
         user_transactions.sort(key=lambda t: t.amount, reverse=reverse)
 
-    # Apply pagination
     paginated = user_transactions[skip : skip + limit]
 
     return {"user_id": user_id, "transactions": paginated}
