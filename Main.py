@@ -1,12 +1,11 @@
 from fastapi import FastAPI, HTTPException
-from models import DepositRequest, DepositResponse, BalanceResponse, ReserveRequest, Reservation, Transaction
+from models import TransactionResponse, DepositRequest, DepositResponse, BalanceResponse, ReserveRequest, Reservation, Transaction
 from service import deposit, get_balance, reserve_funds, recognize_transaction
 from service import balances, transactions, reservations
 from datetime import datetime
 from fastapi import Query
 import logging
 from models_db import User, Balance
-from sqlalchemy.orm import Session
 from sqlalchemy.orm import Session
 
 
@@ -34,8 +33,7 @@ app = FastAPI(title="User Balance Service", version="1.0")
 """@app.post("/deposit", response_model=DepositResponse)
 def deposit_endpoint(request: DepositRequest):
     """
-    Deposit money to a user's account.
-    Validates that the amount is greater than zero.
+
     """
     if request.user_id not in balances:
         logging.error(f"Deposit failed: User {request.user_id} not found")
@@ -65,7 +63,6 @@ def balance_endpoint(user_id: int):
 """@app.post("/reserve", response_model=Reservation)
 def reserve_endpoint(request: ReserveRequest):
     """
-    Money reservation for the transaction.
     """
     if request.user_id not in balances:
         logging.error(f"Reservation failed: User {request.user_id} not found")
@@ -193,3 +190,5 @@ def balance_endpoint(user_id: int, db: Session = Depends(get_db)):
     except Exception as e:
         db.rollback()
         raise HTTPException(status_code=500, detail=f"Error fetching balance: {e}")
+
+

@@ -39,3 +39,15 @@ class Reservation(BaseModel):
     order_id: int
     amount: float
     status: str
+
+
+class TransactionResponse(BaseModel):
+    id: int
+    user_id: int
+    service_id: int
+    order_id: int
+    amount: float
+    timestamp: str
+
+    class Config:
+        orm_mode = True

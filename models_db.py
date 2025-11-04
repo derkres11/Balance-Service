@@ -50,3 +50,15 @@ class Transaction(Base):
     timestamp = Column(DateTime, default=datetime.utcnow)
 
     user = relationship("User", back_populates="transactions")
+
+
+class TransactionResponse(Base):
+    id: int
+    user_id: int
+    service_id: int
+    order_id: int
+    amount: float
+    timestamp: str
+
+    class Config:
+        orm_mode = True
